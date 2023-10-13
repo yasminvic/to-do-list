@@ -24,39 +24,48 @@ public class FilterTaskAuth extends OncePerRequestFilter{
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-                //pegar a autenticação (user e senha)
-                var authorization = request.getHeader("Authorization");
+                var servletPath = request.getServletPath();
 
-                /*
-                 * substring é um metodo para retirar uma parte da string, podendo passar um número X ou um intervalo, de X até Y
-                 * basic tem 5 letras, logo vai cortar a string nas 5 primeiras letras
-                 * e o metodo trim é pra tirar todos os espaços da string
-                 */
-                var authEncoded = authorization.substring("Basic".length()).trim();
-             
-                //decodificando
-                byte[] authDecoded = Base64.getDecoder().decode(authEncoded);
-                var authString = new String(authDecoded);
-                String[] credentials = authString.split(":");
+                if(servletPath.equals("/tasks/create") || servletPath.equals("/tasks/getAll")){
+                    var authorization = request.getHeader("Authorization");
+
+                    /*
+                    * substring é um metodo para retirar uma parte da string, podendo passar um número X ou um intervalo, de X até Y
+                    * basic tem 5 letras, logo vai cortar a string nas 5 primeiras letras
+                    * e o metodo trim é pra tirar todos os espaços da string
+                    */
+                    var authEncoded = authorization.substring("Basic".length()).trim();
                 
-                var username = credentials[0];
-                var password = credentials[1];
-
-                //validar user
-                var user = this.userRepository.findByUsername(username);
-                if(user == null){
-                    response.sendError(401, "Usário não autorizado");
-                }else{
-                    //validar senha
-                    var passwordVerify = BCrypt.verifyer().verify(password.toCharArray(), user.getPassword());
-                    if(passwordVerify.verified){
-                        //segue viagem
-                        filterChain.doFilter(request, response);
-                    }else{
-                        response.sendError(401, "Usário não autorizado");
-                    }
+                    //decodificando
+                    byte[] authDecoded = Base64.getDecoder().decode(authEncoded);
+                    var authString = new String(authDecoded);
+                    String[] credentials = authString.split(":");
                     
+                    var username = credentials[0];
+                    var password = credentials[1];
+
+                    //validar user
+                    var user = this.userRepository.findByUsername(username);
+                    if(user == null){
+                        response.sendError(401, "Usário não autorizado");
+                    }else{
+                        //validar senha
+                        var passwordVerify = BCrypt.verifyer().verify(password.toCharArray(), user.getPassword());
+                        if(passwordVerify.verified){
+                            //segue viagem
+                            request.setAttribute("idUser", user.getId()); //definindo uma chave e o valor que vai receber
+                            filterChain.doFilter(request, response);
+                        }else{
+                            response.sendError(401, "Usário não autorizado");
+                        }
+                        
+                    }
+                }else{
+                    filterChain.doFilter(request, response);
                 }
+
+                //pegar a autenticação (user e senha)
+                
 
                 
     }
